@@ -1,95 +1,630 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>수능완성 2000 – 단어 클릭 및 뜻 보기 예제</title>
+  <meta charset="UTF-8">
+  <title>교과서식 문장 배열영작 연습 - 1과</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 0; padding: 10px; }
-    #showWords {
-      padding: 10px 20px; font-size: 16px;
-      background-color: #4CAF50; color: white;
-      border: 2px solid #4CAF50; border-radius: 8px;
-      cursor: pointer; outline: none; margin-bottom: 10px;
+    body { font-family: 'Arial Rounded MT Bold', Arial, sans-serif; padding: 24px; background: #f6f8fa; }
+    .header {
+      background: #3b82f6; color: #fff; padding: 32px 0 24px 0; text-align: center;
+      font-size: 2.3rem; letter-spacing: 1px; font-weight: bold; box-shadow: 0 4px 16px rgba(0,0,0,0.07);
+      margin-bottom: 18px; border-radius: 0 0 28px 28px;
+      position: relative; display: flex; justify-content: center; align-items: center;
     }
-    #showWords:hover { background-color: white; color: #4CAF50; }
-    #meaningBox {
-      position: sticky; top: 0; background: #fff;
-      padding: 10px; font-size: 18px; color: #333;
-      border-bottom: 1px solid #ccc; z-index: 10;
-      margin-bottom: 10px;
+    .lesson-title { font-size:1.5em; margin-bottom: 32px; color: #1e293b; font-weight: bold; text-align: center;}
+    .problem-block { background: #fff; margin-bottom: 38px; padding: 24px 16px 24px 16px; border-radius: 20px; box-shadow: 0 4px 18px #0001; border-left: 8px solid #3b82f6;}
+    .kor { font-size:1.22em; font-weight: bold; color: #2563eb; margin-bottom:16px;}
+    .sortable { display: flex; flex-wrap: wrap; min-height: 54px; gap: 14px; margin-bottom: 13px; }
+    .word { border: none; border-radius: 10px; padding: 13px 22px; font-size: 1.2em; cursor: pointer; transition: background 0.15s, transform 0.1s; box-shadow: 0 1px 6px #2563eb18; }
+    .answer .word { background: #e0e7ef; color: #1e293b; font-weight: bold;}
+    .pool .word { background: #2563eb; color: #fff; font-weight: bold;}
+    .pool .word:hover { background: #1d4ed8; transform: scale(1.08);}
+    .ctrl { margin-bottom: 8px;}
+    .ctrl button { padding: 8px 22px; font-size: 1.1em; border-radius: 9px; border: none; background: #3b82f6; color: #fff; cursor: pointer; margin-right: 8px; margin-bottom: 5px; font-weight: bold;}
+    .ctrl button:active { background: #2563eb; }
+    .result { font-size: 1.14em; font-weight: bold; color: #d97706; margin-top: 10px; min-height: 28px;}
+    @media (max-width:600px) {
+      .problem-block { padding:12px 6px 18px 6px;}
+      .word { padding: 9px 11px; font-size:1em;}
+      .ctrl button { padding: 7px 13px; font-size: 1em;}
     }
-    #wordList { padding-bottom: 20px; }
-    .lessonHeading { margin-top: 20px; font-size: 20px; font-weight: bold; }
-    .wordItem { display: inline-block; font-size: 20px;
-      cursor: pointer; margin: 5px; padding: 5px 10px;
-      background: #f0f0f0; border-radius: 4px;
+    .home-btn-ko {
+      position: absolute; left: 26px; top: 22px; background: #fff; color: #2563eb;
+      border: none; border-radius: 15px; padding: 12px 22px; font-size: 1.16rem; font-weight: bold;
+      box-shadow: 0 2px 8px #0001; cursor: pointer; text-decoration: none; z-index: 2;
+      transition: background 0.15s, color 0.15s;
+    }
+    .home-btn-ko:hover { background: #dbeafe; color: #1e293b; }
+    @media (max-width:600px) {
+      .home-btn-ko { left: 9px; top: 8px; padding: 7px 13px; font-size: .97em;}
     }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 </head>
 <body>
-  <button id="showWords">단어 목록 전체 보기</button>
-  <div id="meaningBox">단어를 클릭하면 뜻이 이곳에 표시됩니다.</div>
-  <div id="wordList"></div>
-
+  <div class="header">
+    <a href="https://nmyway77.github.io/home2/" class="home-btn-ko" title="홈으로 이동">홈으로</a>
+    교과서식 영어 문장 배열 연습 - 1과
+  </div>
+  <div class="lesson-title" id="lesson-title"></div>
+  <div id="lesson-container"></div>
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const dictionary = [
-        { heading: '1과 단어' },
-        { word: 'apple',     meaning: '사과' },
-        { word: 'banana',    meaning: '바나나' },
-        { word: 'grape',     meaning: '포도' },
-        { heading: '2과 단어' },
-        { word: 'delicious', meaning: '맛있는' },
-        { word: 'fruit',     meaning: '과일' }
-      ];
-
-      const showBtn = document.getElementById('showWords');
-      const wordListDiv = document.getElementById('wordList');
-      const meaningBox = document.getElementById('meaningBox');
-
-      // TTS 발음 재생 (Web Speech API 우선, 실패 시 Google TTS)
-      function speak(word) {
-        if (window.speechSynthesis && 'SpeechSynthesisUtterance' in window) {
-          try {
-            const utter = new SpeechSynthesisUtterance(word);
-            utter.lang = 'en-US';
-            speechSynthesis.speak(utter);
-            return;
-          } catch (e) {
-            console.warn('Web Speech API 실패, Google TTS로 대체:', e);
-          }
-        }
-        // Google Translate TTS fallback
-        const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=${encodeURIComponent(word)}`;
-        const audio = new Audio(url);
-        audio.play().catch(err => console.error('Audio 재생 실패:', err));
+    // 1과 데이터
+    const lessons = [
+      {
+        title: "Lesson 1 - Go-Kart Race",
+        problems: [
+{  kor: "랩을 내뱉어 봐",
+  eng: ["RAP", "it", "OUT"],
+},
+{  kor: "마음을 열고, 가슴을 열어 봐",
+  eng: ["Open", "Your", "MIND", ",", "Open", "Your", "HEART"],
+},
+{  kor: "주위를 둘러보고 랩을 내뱉어 보자",
+  eng: ["Look", "AROUND", "and", "Let", "’", "s", "Rap", "It", "OUT"],
+},
+{  kor: "안녕, 나는 MC Joy야. 너도 너만의 랩을 써 보고 싶니?",
+  eng: ["Hey", ",", "I", "’", "m", "MC", "Joy", ".", "Do", "you", "want", "to", "write", "your", "own", "rap", "?"],
+},
+{  kor: "무엇이든 랩의 주제가 될 수 있어, 모든 것이 랩 이야기가 될 수 있으니까.",
+  eng: ["You", "can", "rap", "about", "anything", "because", "everything", "can", "be", "a", "story", "for", "a", "rap", "."],
+},
+{  kor: "나는 버스에서든, 샤워할 때든, 침대에 누워 있을 때든 아이디어를 얻어.",
+  eng: ["I", "get", "ideas", "when", "I", "’", "m", "on", "the", "bus", ",", "in", "the", "shower", ",", "or", "in", "my", "bed", "."],
+},
+{  kor: "아이디어를 적어 두었다가 랩을 쓸 때 활용하지.",
+  eng: ["I", "write", "down", "my", "ideas", "and", "use", "them", "when", "I", "write", "my", "rap", "."],
+},
+{  kor: "랩을 쓰는 데는 규칙이 없어. 오늘 당장 시작해 봐!",
+  eng: ["There", "are", "no", "rules", "for", "writing", "raps", ".", "You", "can", "start", "today", "!"],
+},
+{  kor: "환상적인 반려동물",
+  eng: ["Fantastic", "Pets"],
+},
+{  kor: "환상적인 반려동물에 오신 것을 환영해! 반려동물을 기르는 것은 정말 멋진 일이야.",
+  eng: ["Welcome", "to", "Fantastic", "Pets", "!", "Having", "a", "pet", "is", "great", "."],
+},
+{  kor: "오늘은 내 반려 고슴도치 폴리를 소개할 거야.",
+  eng: ["Today", "I", "’", "m", "going", "to", "introduce", "my", "pet", "hedgehog", ",", "Polly", "."],
+},
+{  kor: "처음 폴리를 데려왔을 때, 그녀는 매우 겁을 먹고 있었어.",
+  eng: ["When", "I", "first", "got", "Polly", ",", "she", "was", "very", "scared", "."],
+},
+{  kor: "그녀가 가시를 세우느라 나는 안을 수조차 없었지.",
+  eng: ["I", "couldn't", "hold", "her", "because", "she", "raised", "her", "spikes", "."],
+},
+{  kor: "그래서 나는 내 티셔츠를 우리 안에 넣었고, 폴리는 내 냄새에 익숙해졌어.",
+  eng: ["So", ",", "I", "placed", "my", "T-shirt", "in", "her", "cage", "and", "she", "got", "used", "to", "my", "smell", "."],
+},
+{  kor: "마침내 나는 폴리를 손에 안을 수 있게 되었어.",
+  eng: ["Finally", ",", "I", "was", "able", "to", "hold", "her", "in", "my", "hands", "."],
+},
+{  kor: "지금은 폴리가 내 가장 친한 친구가 되어 항상 나를 행복하게 해 줘.",
+  eng: ["Now", ",", "Polly", "is", "my", "best", "friend", "and", "always", "makes", "me", "happy", "."],
+},
+{  kor: "유용한 팁",
+  eng: ["Handy", "Tips"],
+},
+{  kor: "다시 찾아온 유용한 팁입니다.",
+  eng: ["Welcome", "back", "to", "Handy", "Tips", "."],
+},
+{  kor: "보통 영화관에서 어디에 앉니?",
+  eng: ["Where", "do", "you", "normally", "sit", "in", "a", "movie", "theater", "?"],
+},
+{  kor: "여기 팁 하나. 쉽게 따라할 수 있고 도움이 될 거야.",
+  eng: ["Here", "is", "a", "tip", ".", "You", "will", "find", "it", "easy", "and", "helpful", "."],
+},
+{  kor: "먼 곳을 향해 손가락을 가리켜 봐.",
+  eng: ["Point", "your", "finger", "at", "something", "far", "from", "you", "."],
+},
+{  kor: "한쪽 눈을 감았다 다시 떠 봐.",
+  eng: ["Close", "one", "eye", "and", "open", "it", "."],
+},
+{  kor: "반대쪽 눈으로도 반복해 봐.",
+  eng: ["Repeat", "it", "with", "the", "other", "eye", "."],
+},
+{  kor: "언제 손가락이 움직이니?",
+  eng: ["When", "does", "your", "finger", "move", "?"],
+},
+{  kor: "오른쪽 눈을 감을 때 움직이나?",
+  eng: ["Is", "it", "when", "you", "close", "your", "right", "eye", "?"],
+},
+{  kor: "그렇다면 네가 주로 사용하는 눈은 오른쪽이야.",
+  eng: ["Then", "you", "mainly", "use", "your", "right", "eye", "."],
+},
+{  kor: "이 말은 영화관에서 왼쪽 자리에 앉아야 한다는 뜻이지.",
+  eng: ["This", "means", "you", "should", "sit", "on", "the", "left", "side", "in", "the", "theater", "."],
+},
+{  kor: "그래야 스크린을 더 잘 볼 수 있어.",
+  eng: ["That", "way", ",", "you", "can", "enjoy", "a", "full", "view", "of", "the", "screen", "better", "."],
+},
+{  kor: "이 정보는 교실에서 자리 선택할 때도 유용해.",
+  eng: ["This", "information", "is", "also", "helpful", "when", "you", "choose", "a", "seat", "in", "a", "classroom", ",", "too", "."],
+},
+        ]
+      },
+      {
+        title: "Lesson 2 - Dolls around the world",
+        problems: [
+{  kor: "안녕하세요! 저는 스위피입니다.",
+  eng: ["GUTEN", "TAG", "!", "I", "’", "m", "Sweepy", "."],
+},
+{  kor: "저는 독일 출신이며, 제 직업은 굴뚝을 청소하는 것입니다.",
+  eng: ["I", "’", "m", "from", "Germany", "and", "my", "job", "is", "to", "clean", "chimneys", "."],
+},
+{  kor: "겨울 동안 굴뚝 청소부들은 사람들이 따뜻하고 안전하게 지낼 수 있도록 돕습니다.",
+  eng: ["During", "winter", ",", "chimney", "sweeps", "help", "people", "to", "keep", "warm", "and", "safe", "."],
+},
+{  kor: "그래서 사람들은 굴뚝 청소부가 행운을 가져다준다고 믿습니다.",
+  eng: ["So", "people", "think", "chimney", "sweeps", "bring", "them", "good", "luck", "."],
+},
+{  kor: "사람들은 심지어 결혼식에도 굴뚝 청소부가 오기를 원합니다!",
+  eng: ["People", "even", "want", "chimney", "sweeps", "to", "be", "at", "their", "weddings", "!"],
+},
+{  kor: "만약 저를 보게 된다면, 그날은 당신에게 행운이 따르는 날입니다.",
+  eng: ["If", "you", "see", "me", ",", "it", "is", "your", "lucky", "day", "."],
+},
+{  kor: "세계의 인형들",
+  eng: ["Dolls", "around", "the", "world"],
+},
+{  kor: "안녕하세요! 제 이름은 호세이고, 이분들은 제 마리아치 밴드 멤버들입니다.",
+  eng: ["iHOLA", "!", "My", "name", "is", "Jos", "and", "these", "are", "my", "mariachi", "band", "members", "."],
+},
+{  kor: "우리는 민속 음악을 연주하며 항상 소음브레로(큰 모자)를 씁니다.",
+  eng: ["We", "play", "folk", "music", "and", "always", "wear", "our", "sombreros", ",", "or", "big", "hats", "."],
+},
+{  kor: "멕시코에서는 뜨겁고 강한 햇빛 아래서 시원하게 지내기 위해 이런 모자를 씁니다.",
+  eng: ["In", "Mexico", ",", "people", "wear", "these", "hats", "to", "stay", "cool", "under", "the", "hot", "and", "strong", "sunlight", "."],
+},
+{  kor: "우리 마리아치 연주자들은 소음브레로가 화려해 보이길 원합니다.",
+  eng: ["We", "mariachi", "players", "want", "our", "sombreros", "to", "look", "fancy", "."],
+},
+{  kor: "그래서 우리는 다양한 재료로 모자를 자주 장식합니다.",
+  eng: ["So", "we", "often", "decorate", "them", "with", "a", "lot", "of", "different", "materials", "."],
+},
+{  kor: "우리 소음브레로 중에서 어느 것이 가장 마음에 드나요?",
+  eng: ["Which", "of", "our", "sombreros", "do", "you", "like", "best", "?"],
+},
+{  kor: "사보나! 제 이름은 아얀다이며, 저는 줄루족입니다.",
+  eng: ["Sawbona", "!", "My", "name", "is", "Ayanda", "and", "I", "’", "m", "a", "Zulu", "."],
+},
+{  kor: "우리는 남아프리카공화국에 사는 부족입니다.",
+  eng: ["We", "are", "a", "tribe", "in", "South", "Africa", "."],
+},
+{  kor: "제 구슬 장식을 어떻게 생각하시나요?",
+  eng: ["What", "do", "you", "think", "of", "my", "beads", "?"],
+},
+{  kor: "줄루족은 구슬로 의복을 만드는 것을 즐깁니다.",
+  eng: ["Zulu", "people", "enjoy", "making", "clothes", "with", "beads", "."],
+},
+{  kor: "구슬은 아름답고, 각각의 색깔은 특별한 의미를 가집니다.",
+  eng: ["They", "are", "beautiful", "and", "each", "color", "has", "a", "special", "meaning", "."],
+},
+{  kor: "우리에게 고유의 문자 체계가 없었을 때, 우리는 구슬을 사용해 서로 소통했습니다.",
+  eng: ["When", "we", "did", "not", "have", "our", "own", "writing", "system", ",", "we", "used", "beads", "to", "communicate", "with", "each", "other", "."],
+},
+{  kor: "색깔의 의미를 알고 싶다면 아래 상자를 확인해 보세요.",
+  eng: ["If", "you", "want", "to", "know", "the", "meaning", "of", "the", "colors", ",", "check", "out", "the", "following", "box", "."],
+},
+{  kor: "누군가에게 특별한 메시지를 보내고 싶다면 이 구슬로 당신의 마음을 표현할 수 있습니다. 어떤 메시지를 만들고 싶나요?",
+  eng: ["If", "you", "want", "to", "send", "someone", "a", "special", "message", ",", "you", "can", "express", "yourself", "with", "these", "beads", ".", "What", "message", "do", "you", "want", "to", "make", "?"],
+},
+        ]
+      },
+      {
+        title: "Lesson 3 - Possible or Impossible",
+        problems: [
+{  kor: "가능할까 아니면 불가능할까",
+  eng: ["Possible", "or", "Impossible"],
+},
+{  kor: "애니메이션 영화에서는 놀라운 일들이 가능하다.",
+  eng: ["In", "animation", "movies", ",", "amazing", "things", "are", "possible", "."],
+},
+{  kor: "하지만 그것들이 실제 삶에서 정말 가능할까?",
+  eng: ["But", "are", "they", "actually", "possible", "in", "real", "life", "?"],
+},
+{  kor: "머리를 내려라, 라푼젤!",
+  eng: ["Let", "Down", "Your", "Hair", ",", "Rapunzel", "!"],
+},
+{  kor: "애니메이션에서 라푼젤은 사람들을 탑 안으로 들이기 위해 긴 머리카락을 내려야 한다.",
+  eng: ["In", "the", "animation", ",", "Rapunzel", "must", "lower", "her", "long", "hair", "to", "let", "people", "in", "her", "tower", "."],
+},
+{  kor: "하지만 인간의 머리카락이 실제로 한 사람의 체중을 지탱할 수 있을까?",
+  eng: ["But", "could", "human", "hair", "really", "hold", "up", "a", "person", "?"],
+},
+{  kor: "놀랍게도, 그렇다! 한 가닥의 머리카락은 100 g을 지탱할 수 있고, 평균 머리에는 약 120,000가닥의 머리카락이 있다.",
+  eng: ["Surprisingly", ",", "yes", "!", "A", "single", "hair", "can", "hold", "up", "100", "g", "and", "an", "average", "head", "has", "about", "120", ",", "000", "hairs", "."],
+},
+{  kor: "그 모든 머리카락이 모이면 코끼리 몇 마리 정도의 체중을 지탱할 수 있다!",
+  eng: ["All", "those", "hairs", "could", "hold", "up", "a", "couple", "of", "elephants", "!"],
+},
+{  kor: "라푼젤은 자신의 머리카락으로 사람을 들어 올릴 수 있는 능력을 가진 것이다.",
+  eng: ["With", "her", "hair", ",", "Rapunzel", "has", "the", "ability", "to", "hold", "up", "a", "person", "."],
+},
+{  kor: "하지만 그녀는 머리카락을 강하고 무거운 물체에 감아야 한다.",
+  eng: ["But", "she", "should", "wrap", "her", "hair", "around", "something", "strong", "and", "heavy", "."],
+},
+{  kor: "그렇지 않으면 목이 매우 아플 것이다.",
+  eng: ["If", "she", "doesn't", ",", "she", "will", "get", "a", "very", "sore", "neck", "."],
+},
+{  kor: "가능할까 아니면 불가능할까",
+  eng: ["Possible", "or", "Impossible"],
+},
+{  kor: "에너지를 위해 우리는 공포를 선사한다",
+  eng: ["We", "Scare", "for", "Energy"],
+},
+{  kor: "애니메이션에서 괴물들은 비명으로부터 에너지를 얻기 위해 아이들을 겁에 질리게 한다.",
+  eng: ["In", "the", "animation", ",", "monsters", "scare", "children", "to", "get", "energy", "from", "their", "screams", "."],
+},
+{  kor: "놀랍게도 그들의 도시는 이 소리로 움직인다!",
+  eng: ["Amazingly", ",", "their", "city", "is", "powered", "by", "this", "sound", "!"],
+},
+{  kor: "하지만 우리가 소리만으로 도시를 밝힐 전기를 실제로 생산할 수 있을까?",
+  eng: ["But", "could", "we", "actually", "produce", "electricity", "to", "light", "up", "a", "city", "from", "sound", "?"],
+},
+{  kor: "네, 소리는 전기로 변환될 수 있다.",
+  eng: ["Yes", ",", "sound", "can", "be", "changed", "into", "electricity", "."],
+},
+{  kor: "하지만 그 양이 너무 적어서 일상생활에는 도움이 되지 않을 것이다.",
+  eng: ["But", "it", "would", "not", "be", "helpful", "in", "our", "everyday", "activities", "because", "the", "amount", "is", "too", "small", "."],
+},
+{  kor: "예를 들어 자동차 경적 소리는 단지 50 mV만을 생산한다.",
+  eng: ["For", "example", ",", "the", "sound", "from", "a", "car", "horn", "only", "produces", "50", "mV", "."],
+},
+{  kor: "그것은 가정용 평균 220 V의 전기의 1/4400에 불과하다.",
+  eng: ["That", "is", "only", "1", "4400", "of", "the", "average", "220", "V", "of", "electricity", "in", "our", "homes", "."],
+},
+{  kor: "따라서 도시 전체를 밝히려면 엄청난 양의 비명이 필요하다.",
+  eng: ["So", ",", "we", "would", "need", "an", "unbelievable", "amount", "of", "screams", "to", "light", "up", "an", "entire", "city", "."],
+},
+{  kor: "가능할까 아니면 불가능할까",
+  eng: ["Possible", "or", "Impossible"],
+},
+{  kor: "위로, 위로 그리고 하늘 높이!",
+  eng: ["Up", ",", "Up", "and", "Away", "!"],
+},
+{  kor: "애니메이션에서 집은 수천 개의 풍선에 의해 들어 올려져 날아간다.",
+  eng: ["The", "house", "is", "lifted", "and", "flown", "by", "thousands", "of", "balloons", "in", "the", "animation", "."],
+},
+{  kor: "그것이 실제로 가능할까? 집의 무게를 약 50,000 kg이라고 해보자.",
+  eng: ["Could", "that", "actually", "work", "?", "Let's", "say", "that", "a", "house", "weighs", "about", "50", ",", "000", "kg", "."],
+},
+{  kor: "놀이공원에서 흔히 볼 수 있는 풍선 하나는 약 14 g을 들어 올릴 수 있다.",
+  eng: ["A", "normal", "balloon", "at", "an", "amusement", "park", "can", "lift", "about", "14", "g", "."],
+},
+{  kor: "그래서 집을 들어 올리려면 약 3,570,000개의 풍선이 필요하다.",
+  eng: ["So", "we", "need", "about", "3", ",", "570", ",", "000", "balloons", "to", "lift", "up", "the", "house", "."],
+},
+{  kor: "우리는 또한 풍선 자체와 풍선 끈의 무게도 고려해야 한다.",
+  eng: ["We", "also", "have", "to", "think", "about", "the", "weight", "of", "the", "balloons", "themselves", "and", "the", "strings", "."],
+},
+{  kor: "그럼 몇 천 개의 풍선을 더 추가해야 한다.",
+  eng: ["Then", ",", "we", "need", "to", "add", "a", "few", "more", "thousand", "balloons", "."],
+},
+{  kor: "이제 가장 큰 도전은 그 모든 풍선을 부는 것이다!",
+  eng: ["Now", ",", "the", "biggest", "challenge", "is", "pumping", "up", "all", "those", "balloons", "!"],
+},
+        ]
+      },
+      {
+        title: "Lesson 4 - Max's Effort",
+        problems: [
+          {
+    kor: "고카트 경기 트랙에 신이 나서 응원하는 많은 사람들이 있다.",
+    eng: ["At", "the", "go-kart", "race", "track,", "there", "are", "many", "people", "who", "are", "cheering", "excitedly."],
+  },
+  {
+    kor: "시끄러운 엔진 소음을 내고 있는 카트들이 대기하고 있다.",
+    eng: ["The", "karts", "that", "are", "making", "loud", "engine", "noises", "are", "waiting."],
+  },
+  {
+    kor: "심판이 녹색 깃발을 흔들고, 경기가 시작된다!",
+    eng: ["An", "official", "waves", "a", "green", "flag", "and", "the", "race", "starts!"],
+  },
+  {
+    kor: "Max는 트랙에서 여섯 바퀴를 마치면서 가속 페달을 힘껏 발로 누른다.",
+    eng: ["Max", "pushes", "his", "foot", "down", "hard", "on", "the", "gas", "pedal", "as", "he", "completes", "his", "sixth", "lap", "on", "the", "track."],
+  },
+  {
+    kor: "직선 구간에서 Max는 경기의 선두인 Simon의 바로 옆까지 다가간다.",
+    eng: ["On", "the", "straightaway,", "Max", "pulls", "right", "beside", "the", "race's", "leader,", "Simon."],
+  },
+  {
+    kor: "작년에 Simon은 많은 경기에서 우승했지만, 경기에서 Max의 최고 성적은 5등으로 들어온 것이었다.",
+    eng: ["Last", "year,", "Simon", "won", "many", "races,", "but", "Max's", "best", "result", "in", "a", "race", "was", "coming", "in", "fifth", "place."],
+  },
+  {
+    kor: "이번에 그는 2등으로 경기를 마칠 기회가 있다.",
+    eng: ["This", "time,", "he", "has", "a", "chance", "to", "finish", "second."],
+  },
+  {
+    kor: "그러나 그는 오늘 2등으로 만족하지 않을 것이다.",
+    eng: ["But", "he", "isn't", "going", "to", "be", "satisfied", "with", "second", "place", "today."],
+  },
+  {
+    kor: "우승자는 세계적으로 유명한 경주 선수인 L. J. Richards를 만나게 된다!",
+    eng: ["The", "winner", "gets", "to", "meet", "the", "world", "famous", "racer", "L.", "J.", "Richards!"],
+  },
+  {
+    kor: "그는 그의 롤 모델을 만날 수 있는 기회를 놓치고 싶지 않다.",
+    eng: ["He", "doesn't", "want", "to", "miss", "the", "chance", "to", "meet", "his", "role", "model."],
+  },
+  {
+    kor: "Max는 열 바퀴를 마치고 이제 다섯 바퀴가 더 남았다.",
+    eng: ["Max", "completes", "the", "tenth", "lap", "and", "now", "has", "five", "more", "laps", "to", "go."],
+  },
+  {
+    kor: "Max는 바로 닿을 듯한 거리 앞에 있는 Simon의 카트를 본다.",
+    eng: ["Max", "sees", "Simon's", "kart", "ahead,", "just", "out", "of", "Max's", "reach."],
+  },
+  {
+    kor: "Max의 카트는 Simon의 카트에 점점 더 가까이 다가간다.",
+    eng: ["Max's", "kart", "gets", "closer", "and", "closer", "to", "Simon's."],
+  },
+  {
+    kor: "그것은 Simon의 카트 뒷부분에 부딪칠락 말락 하다.",
+    eng: ["It", "almost", "hits", "the", "back", "end", "of", "Simon's", "kart."],
+  },
+  {
+    kor: "그들은 직선 구간으로 차를 몰고 들어가고, Max는 가속 페달을 더 세게 밟는다. '나는 따라잡을 수 있어.' Max가 말한다.",
+    eng: ["They", "drive", "into", "the", "straightaway", "and", "Max", "presses", "harder", "on", "the", "gas", "pedal.", "\"I", "can", "catch", "up,\"", "says", "Max."],
+  },
+  {
+    kor: "Max는 심판이 마지막 바퀴라는 것을 알려 주는 흰색 깃발을 흔드는 것을 본다. Max는 Simon의 바로 뒤에 있다.",
+    eng: ["Max", "sees", "the", "official", "waving", "a", "white", "flag", "which", "means", "the", "last", "lap.", "Max", "is", "right", "behind", "Simon."],
+  },
+  {
+    kor: "결승선이 점점 가까워지고, 관중들의 환호성은 점점 더 커진다.",
+    eng: ["The", "finish", "line", "is", "getting", "closer,", "and", "the", "cheering", "from", "the", "crowd", "is", "getting", "louder."],
+  },
+  {
+    kor: "'나는 할 수 있어!' Max는 큰소리로 외친다. 그는 그의 심장이 빠르게 뛰는 것을 느낄 수 있다.",
+    eng: ["\"I", "can", "do", "it!\"", "Max", "says", "loudly.", "He", "can", "feel", "his", "heart", "beating", "hard."],
+  },
+  {
+    kor: "카트들이 급히 달려 결승선을 지나간다. 누가 우승자일까?",
+    eng: ["The", "karts", "rush", "across", "the", "finish", "line.", "Who", "is", "the", "winner?"],
+  },
+  {
+    kor: "Max가 자신이 2등으로 들어왔다는 것을 깨닫자 그의 눈은 눈물로 가득 찬다.",
+    eng: ["Max's", "eyes", "are", "filled", "with", "tears", "as", "he", "finds", "out", "that", "he", "came", "in", "second."],
+  },
+  {
+    kor: "\"울 필요 없단다, 얘야.\" 어떤 남자가 말한다. Max는 그의 눈을 믿을 수 없다.",
+    eng: ["\"No", "need", "for", "tears,", "kid,\"", "says", "a", "man's", "voice.", "Max", "can't", "believe", "his", "eyes."],
+  },
+  {
+    kor: "그 앞에 서 있는 남자는 L. J. Richards이다!",
+    eng: ["The", "man", "who", "is", "standing", "in", "front", "of", "him", "is", "L.", "J.", "Richards!"],
+  },
+  {
+    kor: "\"감사합니다만 저는 우승자가 아니에요.\" Max가 말한다.",
+    eng: ["\"Thank", "you,", "but", "I'm", "not", "the", "winner,\"", "says", "Max."],
+  },
+  {
+    kor: "\"정말 아슬아슬한 경기였어. 너는 비록 경기에서 우승하지 못했지만 최선을 다했잖니. 중요한 것은 바로 그거란다!\" L. J. Richards가 말한다.",
+    eng: ["\"It", "was", "a", "real", "close", "race.", "Even", "though", "you", "didn't", "win", "the", "race,", "you", "did", "your", "best.", "That's", "the", "thing", "that", "counts!\"", "says", "L.", "J.", "Richards."],
+  },
+  {
+    kor: "'내가 최선을 다했었나?' Max는 생각한다. 잠시 후에 그는 미소를 짓는다. \"네, 저는 최선을 다했다고 생각해요.\"",
+    eng: ["'Did", "I", "do", "my", "best?'", "thinks", "Max.", "After", "a", "moment,", "he", "smiles.", "\"Yeah,", "I", "guess", "I", "did.\""],
+  }
+        ]
+      },
+      {
+        title: "Lesson 5 - A Surprise",
+        problems: [
+          {
+            kor: "그 앞에 서 있는 남자는 L. J. Richards이다!",
+            eng: ["The", "man", "who", "is", "standing", "in", "front", "of", "him", "is", "L.", "J.", "Richards!"],
+          },
+          {
+            kor: "\"감사합니다만 저는 우승자가 아니에요.\" Max가 말한다.",
+            eng: ["\"Thank", "you,", "but", "I'm", "not", "the", "winner,\"", "says", "Max."],
+          },
+        ]
+      },
+      {
+        title: "Lesson 6 - Encouragement",
+        problems: [
+          {
+            kor: "\"정말 아슬아슬한 경기였어. 너는 비록 경기에서 우승하지 못했지만 최선을 다했잖니. 중요한 것은 바로 그거란다!\" L. J. Richards가 말한다.",
+            eng: ["\"It", "was", "a", "real", "close", "race.", "Even", "though", "you", "didn't", "win", "the", "race,", "you", "did", "your", "best.", "That's", "the", "thing", "that", "counts!\"", "says", "L.", "J.", "Richards."],
+          },
+          {
+            kor: "'내가 최선을 다했었나?' Max는 생각한다.",
+            eng: ["'Did", "I", "do", "my", "best?'", "thinks", "Max."],
+          },
+        ]
+      },
+      {
+        title: "Lesson 7 - After the Race",
+        problems: [
+          {
+            kor: "잠시 후에 그는 미소를 짓는다.",
+            eng: ["After", "a", "moment,", "he", "smiles."],
+          },
+          {
+            kor: "\"네, 저는 최선을 다했다고 생각해요.\"",
+            eng: ["\"Yeah,", "I", "guess", "I", "did.\""],
+          },
+        ]
+      },
+      {
+        title: "Lesson 8 - The Winner",
+        problems: [
+          {
+            kor: "카트들이 급히 달려 결승선을 지나간다.",
+            eng: ["The", "karts", "rush", "across", "the", "finish", "line."],
+          },
+          {
+            kor: "누가 우승자일까?",
+            eng: ["Who", "is", "the", "winner?"],
+          },
+        ]
+      },
+      {
+        title: "Lesson 9 - New Friends",
+        problems: [
+          {
+            kor: "Max와 Simon은 서로를 축하해준다.",
+            eng: ["Max", "and", "Simon", "congratulate", "each", "other."],
+          },
+          {
+            kor: "두 사람은 함께 사진을 찍는다.",
+            eng: ["They", "take", "a", "picture", "together."],
+          },
+        ]
+      },
+      {
+        title: "Lesson 10 - Looking Ahead",
+        problems: [
+          {
+            kor: "Max는 다음 경기를 기대한다.",
+            eng: ["Max", "looks", "forward", "to", "the", "next", "race."],
+          },
+          {
+            kor: "그는 다시 도전할 준비가 되어 있다.",
+            eng: ["He", "is", "ready", "to", "try", "again."],
+          },
+        ]
       }
+    ];
 
-      function renderWords() {
-        wordListDiv.innerHTML = '';
-        dictionary.forEach(entry => {
-          if (entry.heading) {
-            const h = document.createElement('div');
-            h.textContent = entry.heading;
-            h.className = 'lessonHeading';
-            wordListDiv.appendChild(h);
-          } else {
-            const span = document.createElement('span');
-            span.textContent = entry.word;
-            span.className = 'wordItem';
-            span.addEventListener('click', () => {
-              meaningBox.textContent = `${entry.word} → ${entry.meaning}`;
-              speak(entry.word);
-            });
-            wordListDiv.appendChild(span);
+    let lessonIdx = 0;
+    let problemStates = [];
+    function shuffle(arr) { return arr.slice().sort(() => Math.random() - 0.5); }
+    function speak(text) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utter = new window.SpeechSynthesisUtterance(text);
+        utter.lang = 'en-US';
+        utter.rate = 1;
+        window.speechSynthesis.speak(utter);
+      }
+    }
+    function renderLesson() {
+      const lesson = lessons[lessonIdx];
+      document.getElementById("lesson-title").textContent = lesson.title;
+      const container = document.getElementById("lesson-container");
+      container.innerHTML = "";
+      lesson.problems.forEach((prob, i) => {
+        let state = problemStates[i];
+        if (!state) {
+          state = { chosen: [], pool: shuffle(prob.eng), result: "" };
+          problemStates[i] = state;
+        }
+        const pb = document.createElement("div");
+        pb.className = "problem-block";
+        pb.innerHTML = `
+          <div class="kor">${i+1}. ${prob.kor}</div>
+          <div class="sortable answer" id="ans-${i}">
+            ${state.chosen.map((w, idx) => `<button class="word" onclick="removeWord(${i},${idx})">${w}</button>`).join('')}
+          </div>
+          <div class="sortable pool" id="pool-${i}">
+            ${state.pool.map((w, idx) => `<button class="word" onclick="chooseWord(${i},${idx})">${w}</button>`).join('')}
+          </div>
+          <div class="ctrl">
+            <button onclick="undoLastWord(${i})">되돌리기</button>
+            <button onclick="resetSentence(${i})">초기화</button>
+            <button onclick="checkAnswer(${i})">정답 확인</button>
+          </div>
+          <div class="result" id="result-${i}">${state.result||""}</div>
+        `;
+        container.appendChild(pb);
+      });
+      // 드래그 앤 드롭 적용
+      lesson.problems.forEach((prob, i) => {
+        Sortable.create(document.getElementById(`ans-${i}`), {
+          group: `words${i}`,
+          animation: 120,
+          swapThreshold: 0.4,
+          onSort: function(evt) {
+            const state = problemStates[i];
+            const ansElem = document.getElementById(`ans-${i}`);
+            state.chosen = Array.from(ansElem.children).map(btn => btn.textContent);
+            state.result = "";
+          },
+          onAdd: function(evt) {
+            // [핵심!] pool → answer로 올 때 원하는 위치에 삽입!
+            const state = problemStates[i];
+            const ansElem = document.getElementById(`ans-${i}`);
+            const poolElem = document.getElementById(`pool-${i}`);
+            const newIdx = evt.newIndex;
+            const movedWord = evt.item.textContent;
+            // pool에서 해당 단어 제거
+            const poolIdx = state.pool.indexOf(movedWord);
+            if(poolIdx > -1) state.pool.splice(poolIdx,1);
+            // answer에서 기존 추가를 방지
+            state.chosen = Array.from(ansElem.children).map(btn => btn.textContent);
+            const existIdx = state.chosen.lastIndexOf(movedWord);
+            if(existIdx > -1) state.chosen.splice(existIdx,1);
+            // 원하는 위치에 삽입
+            state.chosen.splice(newIdx, 0, movedWord);
+            state.result = "";
+            renderLesson();
           }
         });
+        Sortable.create(document.getElementById(`pool-${i}`), {
+          group: `words${i}`,
+          animation: 120,
+          sort: false,
+          onAdd: function(evt) {
+            const state = problemStates[i];
+            const ansElem = document.getElementById(`ans-${i}`);
+            const poolElem = document.getElementById(`pool-${i}`);
+            state.chosen = Array.from(ansElem.children).map(btn => btn.textContent);
+            state.pool = Array.from(poolElem.children).map(btn => btn.textContent);
+            state.result = "";
+          }
+        });
+      });
+    }
+    function chooseWord(pIdx, wIdx) {
+      let state = problemStates[pIdx];
+      state.chosen.push(state.pool[wIdx]);
+      state.pool.splice(wIdx, 1);
+      state.result = "";
+      renderLesson();
+    }
+    function removeWord(pIdx, wIdx) {
+      let state = problemStates[pIdx];
+      state.pool.push(state.chosen[wIdx]);
+      state.chosen.splice(wIdx, 1);
+      state.result = "";
+      renderLesson();
+    }
+    function undoLastWord(pIdx) {
+      let state = problemStates[pIdx];
+      if (state.chosen.length > 0) {
+        state.pool.push(state.chosen.pop());
+        state.result = "";
+        renderLesson();
       }
-
-      showBtn.addEventListener('click', renderWords);
-      renderWords();
-    });
+    }
+    function resetSentence(pIdx) {
+      let prob = lessons[lessonIdx].problems[pIdx];
+      problemStates[pIdx] = { chosen: [], pool: shuffle(prob.eng), result: "" };
+      renderLesson();
+    }
+    function checkAnswer(pIdx) {
+      let prob = lessons[lessonIdx].problems[pIdx];
+      let state = problemStates[pIdx];
+      if (state.chosen.join(' ') === prob.eng.join(' ')) {
+        state.result = "정답입니다! 🎉";
+        speak(prob.eng.join(' '));
+      } else {
+        state.result = "아쉽지만 정답이 아닙니다. 다시 시도해보세요.";
+      }
+      renderLesson();
+    }
+    renderLesson();
+    window.chooseWord = chooseWord;
+    window.removeWord = removeWord;
+    window.undoLastWord = undoLastWord;
+    window.resetSentence = resetSentence;
+    window.checkAnswer = checkAnswer;
   </script>
 </body>
 </html>
+
